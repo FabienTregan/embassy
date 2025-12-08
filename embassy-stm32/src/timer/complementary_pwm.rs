@@ -12,6 +12,7 @@ use crate::time::Hertz;
 use crate::timer::low_level::OutputCompareMode;
 use crate::timer::TimerChannel;
 use crate::Peri;
+use crate::timer::simple_pwm::PwmPinConfig;
 
 /// Complementary PWM pin wrapper.
 ///
@@ -29,6 +30,24 @@ impl<'d, T: AdvancedInstance4Channel, C: TimerChannel> ComplementaryPwmPin<'d, T
             pin.set_as_af(
                 pin.af_num(),
                 crate::gpio::AfType::output(output_type, crate::gpio::Speed::VeryHigh),
+            );
+        });
+        ComplementaryPwmPin {
+            _pin: pin.into(),
+            phantom: PhantomData,
+        }
+    }
+
+    /// Create a new PWM pin instance with config.
+    pub fn new_with_config(pin: Peri<'d, impl TimerComplementaryPin<T, C>>, pin_config: PwmPinConfig) -> Self {
+        critical_section::with(|_| {
+            pin.set_low();
+            pin.set_as_af(
+                pin.af_num(),
+                #[cfg(gpio_v1)]
+                crate::gpio::AfType::output(pin_config.output_type, pin_config.speed),
+                #[cfg(gpio_v2)]
+                crate::gpio::AfType::output_pull(pin_config.output_type, pin_config.speed, pin_config.pull),
             );
         });
         ComplementaryPwmPin {
